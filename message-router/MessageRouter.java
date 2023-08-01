@@ -23,20 +23,20 @@ public class MessageRouter extends RouteBuilder {
                     .to("direct:dc")
                 .otherwise()
                     .to("direct:unknown")
-            .end()
-            .setBody(simple("${exchangeProperty[name]} | ${exchangeProperty[brandFullName]} "))
-            .to("file://out?fileExist=Append&appendChars=\\n");
+            .end();
+            
             
 
 
         from("direct:marvel")
-            .setProperty("brandFullName",constant("Marvel"));
+            .to("file://out?fileName=marvel.txt&fileExist=TryRename&appendChars=\\n");
+            
 
         from("direct:dc")
-            .setProperty("brandFullName",constant("DC"));
+            .to("file://out/?fileName=dc.txt&fileExist=Append&appendChars=\\n");
 
         from("direct:unknown")
-             .setProperty("brandFullName",constant("Unknown"));
+             .to("file://out?fileName=unknown.txt&fileExist=Append&appendChars=\\n");
 
     }
 }
