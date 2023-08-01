@@ -12,9 +12,7 @@ public class MessageRouter extends RouteBuilder {
             .split()
             .tokenize("\n",1)
             .setProperty("brand", simple("${body.substring(4,6).trim()}"))
-            .setProperty("name", simple("${body.substring(6,22).trim()}"))
             
-
             .choice()
 
                 .when(simple("${exchangeProperty[brand]} == 'MV'"))
