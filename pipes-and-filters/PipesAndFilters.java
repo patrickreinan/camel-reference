@@ -1,9 +1,6 @@
 // camel-k: language=java
 
 import org.apache.camel.builder.RouteBuilder;
-import org.apache.camel.model.DataFormatDefinition;
-import org.apache.camel.Processor;
-import org.apache.camel.Exchange;
 
 
 public class PipesAndFilters extends RouteBuilder {
@@ -11,41 +8,20 @@ public class PipesAndFilters extends RouteBuilder {
     @Override
     public void configure() throws Exception {
 
-       
-
         // Write your routes here, for example:
         from("file://in")
-            .routeId("fileIn")
-            .to("direct:parse")
-            .to("direct:transform")
-            .to("direct:output");
-            
-        
-
-        from("direct:transform")
-            .routeId("transform")
-            .process((exc)->{
-                Order o = exc.getMessage().getBody(Order.class);
-                exc.getMessage().setBody(o);
-            });
-
-
-        from("direct:parse")
-            .routeId("parse")
+            .routeId("processfile")
             .unmarshal()
-            .json(Order.class);
-
-
-        from("direct:log")
-            .routeId("log")
-            .log("${body}");
-
-        from("direct:output")
-            .id("output")
+            .json(Order.class)
+            .process((exchange)->{
+                Order o = exchange.getMessage().getBody(Order.class);
+                exchange.getMessage().setBody(o);
+            })
             .marshal()
-            .json()
-            .to("file://out?fileExist=Override")
-            .to("direct:log");
+            .jacksonXml(true)
+            .to("file://out?fileExist=Override&fileName=orders.xml")
+            .log("${body}");
+            
     }
    
 
