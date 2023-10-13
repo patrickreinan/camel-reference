@@ -1,6 +1,6 @@
 // camel-k: language=java
 
-import org.apache.camel.Exchange;
+
 import org.apache.camel.builder.RouteBuilder;
 
 public class Resequencer extends RouteBuilder {
