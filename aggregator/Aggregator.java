@@ -1,21 +1,33 @@
 // camel-k: language=java
 
+
+import java.util.ArrayList;
+import java.util.List;
+
 import org.apache.camel.AggregationStrategy;
 import org.apache.camel.Exchange;
+import org.apache.camel.ExchangePropertyKey;
 import org.apache.camel.builder.RouteBuilder;
 
 
 public class Aggregator extends RouteBuilder {
 
+     static final String  CARS_ROUTE_ID="cars";
+     static final String CATEGORY_ROUTE_ID="category";
+
+
+
     @Override
     public void configure() throws Exception {
 
         from("file://in?noop=true&fileName=car.txt")
-            .routeId("car")
+            .routeId(CARS_ROUTE_ID)
+            .split()
+            .tokenize("\n")       
             .to("direct:aggregate");
         
         from("file://in?noop=true&fileName=category.txt")
-            .routeId("category")
+            .routeId(CATEGORY_ROUTE_ID)
             .to("direct:aggregate");
         
 
@@ -24,41 +36,76 @@ public class Aggregator extends RouteBuilder {
             .aggregate(new CustomStringAggregationStrategy())
         
             .constant(true)
-            .completionSize(2)
+            // cars may be finished and category may be a name.
+            .completionTimeout("1000")
+            .completionPredicate(p -> p.getIn().getExchange().getFromRouteId().equals(CARS_ROUTE_ID) && p.getIn().getExchange().getProperty(ExchangePropertyKey.SPLIT_COMPLETE, Boolean.class) && !p.getIn().getBody(Category.class).getName().isEmpty())
+            
+            .marshal()
+            .json()
             .log("${body}");
+    
     }
-}
+
 
 
 class CustomStringAggregationStrategy implements AggregationStrategy {
 
     public Exchange aggregate(Exchange oldExchange, Exchange newExchange) {
         
+        //old will be null or a category
+        //new always will be a string
 
         boolean first = oldExchange==null;
-        Exchange exchange = oldExchange == null ? newExchange : oldExchange;
-
-        String oldBody = first ? null : oldExchange.getIn().getBody(String.class);
+        
+        Category oldBody = first ? new Category() : oldExchange.getIn().getBody(Category.class);
         String newBody = newExchange.getIn().getBody(String.class);
-        String body = null;
 
-        switch (newExchange.getFromRouteId()) {
-            case "car":
-                body =  "car:" + newBody;
+         switch (newExchange.getFromRouteId()) {
+            case CARS_ROUTE_ID:
+                oldBody.addCar(newBody);
                 break;
         
-            case "category" :
-                body= "category:" + newBody;
+            case CATEGORY_ROUTE_ID :
+                oldBody.setName(newBody);
                 break;
         }
 
-        
-        if(first )
-            exchange.getIn().setBody(body);
-        else
-            exchange.getIn().setBody(oldBody + "\n"+ body); 
-        
-;
-        return exchange;
+        //replace new from string to category
+        newExchange.getIn().setBody(oldBody);
+
+        return newExchange;
     }
+}
+
+class Category {
+
+    private String name;
+    private final List<String> cars;
+
+    public Category() {
+        cars = new ArrayList<String>();
+    }
+    
+    public void setName(String name) {
+        this.name = name;
+    }
+   public String getName(){
+        return name;
+    }
+
+    
+    public void addCar(String car){
+        this.cars.add(car);
+    }
+
+    public List<String> getCars(){
+        return cars;
+    }
+
+
+
+ 
+}
+    
+
 }
